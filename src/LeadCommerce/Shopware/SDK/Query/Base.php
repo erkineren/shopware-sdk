@@ -3,6 +3,7 @@
 namespace LeadCommerce\Shopware\SDK\Query;
 
 use LeadCommerce\Shopware\SDK\Exception\MethodNotAllowedException;
+use LeadCommerce\Shopware\SDK\Exception\NotValidApiResponseException;
 use LeadCommerce\Shopware\SDK\ShopwareClient;
 use LeadCommerce\Shopware\SDK\Util\Constants;
 use Psr\Http\Message\ResponseInterface;
@@ -39,6 +40,25 @@ abstract class Base
     ];
 
     /**
+     * @var string
+     */
+    protected $raw_response;
+    /**
+     * @var array
+     */
+    protected $array_response;
+
+    /**
+     * @var \LeadCommerce\Shopware\SDK\Entity\Base
+     */
+    protected $entity;
+
+    /**
+     * @var \LeadCommerce\Shopware\SDK\Entity\Base[]
+     */
+    protected $entities;
+
+    /**
      * Base constructor.
      *
      * @param $client
@@ -50,24 +70,68 @@ abstract class Base
     }
 
     /**
+     * @return string
+     */
+    public function getRawResponse()
+    {
+        return $this->raw_response;
+    }
+
+    /**
+     * @param null $key
+     * @return array
+     */
+    public function getArrayResponse($key = null)
+    {
+        if (!$key) return $this->array_response;
+        return $this->array_response[$key];
+    }
+
+    /**
+     * @return \LeadCommerce\Shopware\SDK\Entity\Base
+     * @throws NotValidApiResponseException
+     */
+    public function getEntity()
+    {
+        if (!$this->entity) {
+            $entity_result = $this->createEntityFromResponse($this->raw_response);
+
+            if (is_array($entity_result)) {
+                $this->entity = count($entity_result) > 0 ? reset($entity_result) : null;
+            } else {
+                $this->entity = $entity_result;
+            }
+        }
+
+        return $this->entity;
+    }
+
+    /**
+     * @return \LeadCommerce\Shopware\SDK\Entity\Base[]
+     * @throws NotValidApiResponseException
+     */
+    public function getEntities()
+    {
+        if (!$this->entities) {
+            $entity_result = $this->createEntityFromResponse($this->raw_response);
+
+            if (is_array($entity_result)) {
+                $this->entities = $entity_result;
+            } else {
+                $this->entities = [$entity_result];
+            }
+        }
+
+        return $this->entities;
+    }
+
+    /**
      * Gets the query path to look for entities.
      * E.G: 'variants' or 'articles'
      *
      * @return string
      */
     abstract protected function getQueryPath();
-
-    /**
-     * Finds all entities.
-     *
-     * @return \LeadCommerce\Shopware\SDK\Entity\Base[]
-     */
-    public function findAll()
-    {
-        $this->validateMethodAllowed(Constants::METHOD_GET_BATCH);
-
-        return $this->fetch($this->queryPath);
-    }
 
     /**
      * Validates if the requested method is allowed.
@@ -88,29 +152,43 @@ abstract class Base
      *
      * @param $uri
      * @param string $method
-     * @param null   $body
-     * @param array  $headers
+     * @param null $body
+     * @param array $headers
      *
-     * @return array|mixed
+     * @return Base
+     * @throws NotValidApiResponseException
      */
     protected function fetch($uri, $method = 'GET', $body = null, $headers = [])
     {
         $response = $this->client->request($uri, $method, $body, $headers);
 
-        return $this->createEntityFromResponse($response);
+        $this->raw_response = $response->getBody()->getContents();
+        $this->array_response = json_decode($this->raw_response, true);
+
+        return $this;
     }
 
     /**
      * Creates an entity
      *
-     * @param ResponseInterface $response
+     * @param ResponseInterface|string $response
      *
      * @return array|mixed
+     * @throws NotValidApiResponseException
      */
-    protected function createEntityFromResponse(ResponseInterface $response)
+    protected function createEntityFromResponse($response)
     {
-        $content = $response->getBody()->getContents();
-        $content = json_decode($content);
+        if ($response instanceof ResponseInterface) {
+            $raw_response = $response->getBody()->getContents();
+        } else {
+            $raw_response = $response;
+        }
+
+        $content = json_decode($raw_response);
+
+        if (json_last_error() > 0)
+            throw New NotValidApiResponseException($raw_response);
+
         $content = $content->data;
 
         if (is_array($content)) {
@@ -150,17 +228,45 @@ abstract class Base
     abstract protected function getClass();
 
     /**
+     * Finds all entities.
+     *
+     * @return Base
+     * @throws MethodNotAllowedException
+     * @throws NotValidApiResponseException
+     */
+    public function findAll($params = '')
+    {
+        $this->validateMethodAllowed(Constants::METHOD_GET_BATCH);
+
+        $queryString = '';
+        if (!empty($params)) {
+            $queryString = http_build_query($params);
+            $this->queryPath = rtrim($this->queryPath, '?') . '?';
+        }
+
+
+        return $this->fetch($this->queryPath . $queryString);
+    }
+
+    /**
      * Finds an entity by its id.
      *
      * @param $id
      *
-     * @return \LeadCommerce\Shopware\SDK\Entity\Base
+     * @return Base
+     * @throws NotValidApiResponseException
+     * @throws MethodNotAllowedException
      */
-    public function findOne($id)
+    public function findOne($id, $useNumberAsId = false)
     {
         $this->validateMethodAllowed(Constants::METHOD_GET);
 
-        return $this->fetch($this->queryPath . '/' . $id);
+        $queryString = '';
+        if ($useNumberAsId) {
+            $queryString = "?useNumberAsId=true";
+        }
+
+        return $this->fetch($this->queryPath . '/' . $id . $queryString);
     }
 
     /**
@@ -168,9 +274,10 @@ abstract class Base
      *
      * @param \LeadCommerce\Shopware\SDK\Entity\Base $entity
      *
+     * @return Base
      * @throws MethodNotAllowedException
+     * @throws NotValidApiResponseException
      *
-     * @return \LeadCommerce\Shopware\SDK\Entity\Base
      */
     public function create(\LeadCommerce\Shopware\SDK\Entity\Base $entity)
     {
@@ -184,9 +291,10 @@ abstract class Base
      *
      * @param \LeadCommerce\Shopware\SDK\Entity\Base $entity
      *
-     * @throws MethodNotAllowedException
-     *
      * @return array|mixed
+     * @throws MethodNotAllowedException
+     * @throws NotValidApiResponseException
+     *
      */
     public function update(\LeadCommerce\Shopware\SDK\Entity\Base $entity)
     {
@@ -200,7 +308,9 @@ abstract class Base
      *
      * @param \LeadCommerce\Shopware\SDK\Entity\Base[] $entities
      *
-     * @return \LeadCommerce\Shopware\SDK\Entity\Base[]
+     * @return Base
+     * @throws MethodNotAllowedException
+     * @throws NotValidApiResponseException
      */
     public function updateBatch($entities)
     {
@@ -218,9 +328,10 @@ abstract class Base
      *
      * @param $id
      *
-     * @throws MethodNotAllowedException
-     *
      * @return array|mixed
+     * @throws MethodNotAllowedException
+     * @throws NotValidApiResponseException
+     *
      */
     public function delete($id)
     {
@@ -234,9 +345,10 @@ abstract class Base
      *
      * @param array $ids
      *
-     * @throws MethodNotAllowedException
-     *
      * @return array|mixed
+     * @throws MethodNotAllowedException
+     * @throws NotValidApiResponseException
+     *
      */
     public function deleteBatch(array $ids)
     {
@@ -248,12 +360,12 @@ abstract class Base
     /**
      * @param $uri
      * @param string $method
-     * @param null   $body
-     * @param array  $headers
+     * @param null $body
+     * @param array $headers
      *
      * @return mixed|ResponseInterface
      */
-    protected function fetchSimple($uri, $method = 'GET', $body = null, $headers = [])
+    public function fetchSimple($uri, $method = 'GET', $body = null, $headers = [])
     {
         return $this->client->request($uri, $method, $body, $headers);
     }
@@ -263,15 +375,33 @@ abstract class Base
      *
      * @param $uri
      * @param string $method
-     * @param null   $body
-     * @param array  $headers
+     * @param null $body
+     * @param array $headers
      *
      * @return false|\stdClass
      */
-    protected function fetchJson($uri, $method = 'GET', $body = null, $headers = [])
+    public function fetchJson($uri, $method = 'GET', $body = null, $headers = [])
     {
         $response = $this->client->request($uri, $method, $body, $headers);
         $response = json_decode($response->getBody()->getContents());
+
+        return $response ? $response : null;
+    }
+
+    /**
+     * Fetch as array
+     *
+     * @param $uri
+     * @param string $method
+     * @param null $body
+     * @param array $headers
+     *
+     * @return mixed|null
+     */
+    public function fetchArray($uri, $method = 'GET', $body = null, $headers = [])
+    {
+        $response = $this->client->request($uri, $method, $body, $headers);
+        $response = json_decode($response->getBody()->getContents(), true);
 
         return $response ? $response : null;
     }

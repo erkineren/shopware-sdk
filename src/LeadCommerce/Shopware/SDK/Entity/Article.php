@@ -628,7 +628,7 @@ class Article extends Base
     }
 
     /**
-     * @return array
+     * @return ArticleAttribute
      */
     public function getAttributes()
     {
@@ -678,7 +678,7 @@ class Article extends Base
     /**
      * @param ArticleDetail $mainDetail
      */
-    public function setMainDetail(ArticleDetail $mainDetail)
+    public function setMainDetail($mainDetail)
     {
         $this->mainDetail = $mainDetail;
     }

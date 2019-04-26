@@ -1,35 +1,40 @@
 {
-    "name": "leadcommerce/shopware-sdk",
-    "description": "A PHP SDK for the Shopware 5 REST API.",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Alexander Mahrt",
-            "email": "amahrt@leadcommerce.de"
-        },
-        {
-            "name": "Jochen Niebuhr",
-            "email": "jochen.niebuhr@nk360.de"
-        }
-    ],
-    "extra": {
-        "branch-alias": {
-            "dev-master": "1.0.x-dev"
-        }
+  "name": "erkineren/shopware-sdk",
+  "description": "Edited LeadCommerce PHP SDK for the Shopware 5 REST API.",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Alexander Mahrt",
+      "email": "amahrt@leadcommerce.de"
     },
-    "require": {
-        "php" : ">=5.5",
-        "guzzlehttp/guzzle": "^6.2"
+    {
+      "name": "Jochen Niebuhr",
+      "email": "jochen.niebuhr@nk360.de"
     },
-    "require-dev": {
-        "satooshi/php-coveralls": "~1.0.0",
-        "phpunit/phpunit": "~4.8.21"
-    },
-    "autoload": {
-        "psr-0": {
-            "LeadCommerce\\Shopware\\SDK\\": "src/",
-            "LeadCommerce\\Tests\\Unit\\": "tests/",
-            "LeadCommerce\\Tests\\Functional\\": "tests/"
-        }
+    {
+      "name": "Erkin Eren",
+      "email": "eren@erkin.net"
     }
+  ],
+  "extra": {
+    "branch-alias": {
+      "dev-master": "1.0.x-dev"
+    }
+  },
+  "require": {
+    "php": ">=5.5",
+    "guzzlehttp/guzzle": "^6.2",
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "php-coveralls/php-coveralls": "~1.0.0",
+    "phpunit/phpunit": "~4.8.21"
+  },
+  "autoload": {
+    "psr-0": {
+      "LeadCommerce\\Shopware\\SDK\\": "src/",
+      "LeadCommerce\\Tests\\Unit\\": "tests/",
+      "LeadCommerce\\Tests\\Functional\\": "tests/"
+    }
+  }
 }

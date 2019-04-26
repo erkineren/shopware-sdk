@@ -39,4 +39,29 @@ class OrdersQuery extends Base
     {
         return 'orders';
     }
+
+    /**
+     * @param $ordernumber
+     * @return Base
+     * @throws \LeadCommerce\Shopware\SDK\Exception\MethodNotAllowedException
+     * @throws \LeadCommerce\Shopware\SDK\Exception\NotValidApiResponseException
+     */
+    public function findOneByNumber($ordernumber)
+    {
+        $result = $this->findAll([
+            'filter' => [
+                [
+                    'property' => 'number',
+                    'value' => $ordernumber
+                ]
+            ]
+        ]);
+
+        if ($result->getEntity()) {
+            return $this->findOne($ordernumber, true);
+        }
+
+        return null;
+    }
+
 }
