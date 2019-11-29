@@ -2,11 +2,13 @@
 
 namespace LeadCommerce\Shopware\SDK\Query;
 
+use GuzzleHttp\Exception\GuzzleException;
 use LeadCommerce\Shopware\SDK\Exception\MethodNotAllowedException;
 use LeadCommerce\Shopware\SDK\Exception\NotValidApiResponseException;
 use LeadCommerce\Shopware\SDK\ShopwareClient;
 use LeadCommerce\Shopware\SDK\Util\Constants;
 use Psr\Http\Message\ResponseInterface;
+use stdClass;
 
 /**
  * Class Base
@@ -43,6 +45,7 @@ abstract class Base
      * @var string
      */
     protected $raw_response;
+
     /**
      * @var array
      */
@@ -85,6 +88,38 @@ abstract class Base
     {
         if (!$key) return $this->array_response;
         return $this->array_response[$key];
+    }
+
+    /**
+     * @param $property
+     * @param $expression
+     * @param $value
+     * @return $this
+     */
+    public function withFilter($property, $expression, $value)
+    {
+        $this->client->withFilter($property, $expression, $value);
+        return $this;
+    }
+
+    /**
+     * @param $name
+     * @param $value
+     * @return $this
+     */
+    public function withParam($name, $value)
+    {
+        $this->client->withParam($name, $value);
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    public function resetParams()
+    {
+        $this->client->resetParams();
+        return $this;
     }
 
     /**
@@ -156,7 +191,7 @@ abstract class Base
      * @param array $headers
      *
      * @return Base
-     * @throws NotValidApiResponseException
+     * @throws GuzzleException
      */
     protected function fetch($uri, $method = 'GET', $body = null, $headers = [])
     {
@@ -232,20 +267,12 @@ abstract class Base
      *
      * @return Base
      * @throws MethodNotAllowedException
-     * @throws NotValidApiResponseException
+     * @throws GuzzleException
      */
-    public function findAll($params = '')
+    public function findAll()
     {
         $this->validateMethodAllowed(Constants::METHOD_GET_BATCH);
-
-        $queryString = '';
-        if (!empty($params)) {
-            $queryString = http_build_query($params);
-            $this->queryPath = rtrim($this->queryPath, '?') . '?';
-        }
-
-
-        return $this->fetch($this->queryPath . $queryString);
+        return $this->fetch($this->queryPath);
     }
 
     /**
@@ -254,19 +281,13 @@ abstract class Base
      * @param $id
      *
      * @return Base
-     * @throws NotValidApiResponseException
      * @throws MethodNotAllowedException
+     * @throws GuzzleException
      */
-    public function findOne($id, $useNumberAsId = false)
+    public function findOne($id)
     {
         $this->validateMethodAllowed(Constants::METHOD_GET);
-
-        $queryString = '';
-        if ($useNumberAsId) {
-            $queryString = "?useNumberAsId=true";
-        }
-
-        return $this->fetch($this->queryPath . '/' . $id . $queryString);
+        return $this->fetch($this->queryPath . '/' . $id);
     }
 
     /**
@@ -276,8 +297,7 @@ abstract class Base
      *
      * @return Base
      * @throws MethodNotAllowedException
-     * @throws NotValidApiResponseException
-     *
+     * @throws GuzzleException
      */
     public function create(\LeadCommerce\Shopware\SDK\Entity\Base $entity)
     {
@@ -293,8 +313,7 @@ abstract class Base
      *
      * @return array|mixed
      * @throws MethodNotAllowedException
-     * @throws NotValidApiResponseException
-     *
+     * @throws GuzzleException
      */
     public function update(\LeadCommerce\Shopware\SDK\Entity\Base $entity)
     {
@@ -310,7 +329,7 @@ abstract class Base
      *
      * @return Base
      * @throws MethodNotAllowedException
-     * @throws NotValidApiResponseException
+     * @throws GuzzleException
      */
     public function updateBatch($entities)
     {
@@ -330,8 +349,7 @@ abstract class Base
      *
      * @return array|mixed
      * @throws MethodNotAllowedException
-     * @throws NotValidApiResponseException
-     *
+     * @throws GuzzleException
      */
     public function delete($id)
     {
@@ -347,8 +365,7 @@ abstract class Base
      *
      * @return array|mixed
      * @throws MethodNotAllowedException
-     * @throws NotValidApiResponseException
-     *
+     * @throws GuzzleException
      */
     public function deleteBatch(array $ids)
     {
@@ -364,6 +381,7 @@ abstract class Base
      * @param array $headers
      *
      * @return mixed|ResponseInterface
+     * @throws GuzzleException
      */
     public function fetchSimple($uri, $method = 'GET', $body = null, $headers = [])
     {
@@ -378,7 +396,8 @@ abstract class Base
      * @param null $body
      * @param array $headers
      *
-     * @return false|\stdClass
+     * @return false|stdClass
+     * @throws GuzzleException
      */
     public function fetchJson($uri, $method = 'GET', $body = null, $headers = [])
     {
@@ -397,6 +416,7 @@ abstract class Base
      * @param array $headers
      *
      * @return mixed|null
+     * @throws GuzzleException
      */
     public function fetchArray($uri, $method = 'GET', $body = null, $headers = [])
     {

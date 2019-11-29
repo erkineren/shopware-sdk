@@ -70,6 +70,11 @@ class ShopwareClient
     protected $client;
 
     /**
+     * @var array
+     */
+    protected $params = [];
+
+    /**
      * ShopwareClient constructor.
      *
      * @param $baseUrl
@@ -86,7 +91,7 @@ class ShopwareClient
 
         $guzzleOptions = array_merge($guzzleOptions, [
             'base_uri' => $this->baseUrl,
-            'handler'  => $handlerStack,
+            'handler' => $handlerStack,
         ]);
         $this->client = new Client($guzzleOptions);
     }
@@ -96,22 +101,61 @@ class ShopwareClient
      *
      * @param $uri
      * @param string $method
-     * @param null   $body
-     * @param array  $headers
+     * @param null $body
+     * @param array $headers
      *
      * @return mixed|\Psr\Http\Message\ResponseInterface
+     * @throws \GuzzleHttp\Exception\GuzzleException
      */
     public function request($uri, $method = 'GET', $body = null, $headers = [])
     {
-        return $this->client->request($method, $uri, [
-            'json'        => $body,
-            'headers'     => $headers,
-            'auth'        => [
+        $connector = strpos($uri, '?') === false ? '?' : '&';
+        if ($this->params) $uri .= $connector . http_build_query($this->params);
+        $res = $this->client->request($method, $uri, [
+            'json' => $body,
+            'headers' => $headers,
+            'auth' => [
                 $this->username,
                 $this->apiKey,
                 'digest',
             ],
         ]);
+        $this->resetParams();
+        return $res;
+    }
+
+    /**
+     * @param $property
+     * @param $expression
+     * @param $value
+     * @return $this
+     */
+    public function withFilter($property, $expression, $value)
+    {
+        $filters = isset($this->params['filter']) ? $this->params['filter'] : [];
+        array_push($filters, ['property' => $property, 'expression' => $expression, 'value' => $value]);
+        $this->params['filter'] = $filters;
+        return $this;
+    }
+
+    /**
+     * @param $name
+     * @param $value
+     * @return $this
+     */
+    public function withParam($name, $value)
+    {
+        $this->params[$name] = $value;
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    public function resetParams()
+    {
+        $this->params = [];
+        return $this;
     }
 
     /**
